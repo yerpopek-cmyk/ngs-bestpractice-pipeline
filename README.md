@@ -1,3 +1,4 @@
+# GATK Best Practices Pipeline
 # NGS Y/MT Analysis Pipeline
 
 ![Bioinformatics](https://img.shields.io/badge/Bioinformatics-Pipeline-blue)
