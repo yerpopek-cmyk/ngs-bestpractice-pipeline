@@ -1,5 +1,5 @@
 # GATK Best Practices Pipeline
-# ---NGS Y/MT Analysis Pipeline---
+############################ ---NGS Y/MT Analysis Pipeline---
 
 ![Bioinformatics](https://img.shields.io/badge/Bioinformatics-Pipeline-blue)
 ![Bash](https://img.shields.io/badge/Language-Bash%20%7C%20Python-green)
