@@ -1,4 +1,0 @@
-"SampleID"	"Haplogroup"	"Rank"	"Quality"	"Range"
-"SRR062634_1_trimmed.fastq"	"H16a1"	"1"	"0.9579"	"1-16569"
-"SRR062654_1_trimmed.fastq"	"B2d"	"1"	"0.8847"	"1-16569"
-"SRR622461_1_trimmed.fastq"	"H13a1a1a"	"1"	"0.9957"	"1-16569"

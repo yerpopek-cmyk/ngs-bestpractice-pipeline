@@ -2,6 +2,7 @@
 fastq/
 reference/
 tmp/
+out/
 *.fastq
 *.bam
 *.ubam

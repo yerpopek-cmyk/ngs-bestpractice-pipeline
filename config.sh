@@ -40,8 +40,8 @@ export FASTQ_DIR="${BASE_DIR}/fastq"
 export REFERENCE_DIR="${BASE_DIR}/reference"
 
 # Move output to internal WSL filesystem for stable IO (avoiding 9P AcceptAsync errors)
-export OUT_DIR="/home/yer_kanat/ngs-pipeline/out"
-export TMP_DIR="/home/yer_kanat/ngs-pipeline/tmp"
+export OUT_DIR="${BASE_DIR}/out"
+export TMP_DIR="${BASE_DIR}/tmp"
 export LOG_DIR="${BASE_DIR}/logs"
 export CONTROL_DIR="${BASE_DIR}/control"
 

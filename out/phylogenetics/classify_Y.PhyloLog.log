@@ -1,8 +1,0 @@
-[2026-05-30 13:41:33,165] - [INFO]: [Y-LineageTracker] [Phylo]
-[2026-05-30 13:41:33,165] - [INFO]: [Y-LineageTracker] Run Date: Sat May 30 13:41:33 2026
-[2026-05-30 13:41:33,165] - [INFO]: [Y-LineageTracker] Haplogroup File: /home/yer_kanat/ngs-pipeline/out/phylogenetics/classify_Y.hapresult.hg
-[2026-05-30 13:41:33,165] - [INFO]: [Y-LineageTracker] Seq File: /home/yer_kanat/ngs-pipeline/out/chrY_MT_final_renamed.vcf.gz
-[2026-05-30 13:41:33,165] - [INFO]: [Y-LineageTracker] Seq Format: vcf
-[2026-05-30 13:41:33,165] - [INFO]: [Y-LineageTracker] Population File: None
-[2026-05-30 13:41:33,166] - [INFO]: [Y-LineageTracker] Tree Layout: rectangular
-[2026-05-30 13:41:33,166] - [INFO]: [Y-LineageTracker] Output Tree Format: newick

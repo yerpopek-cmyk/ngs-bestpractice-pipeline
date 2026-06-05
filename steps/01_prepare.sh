@@ -154,30 +154,33 @@ log_theory "Why convert FASTQ to uBAM?" \
     "  --PL illumina → Sequencing platform (PL field in @RG)" \
     "  --LB lib1     → Library (LB field in @RG, important for MarkDuplicates)"
 
-log_info "Running GNU Parallel (-j ${PARALLEL_JOBS}): FastqToSam for each FASTQ pair"
+log_info "Running FastqToSam for each FASTQ sample (background parallel)"
 
-# GNU Parallel accepts 2 arguments per job (-N 2): first R1.fastq.gz and second R2.fastq.gz
-# {1} = first argument (R1), {2} = second (R2)
-# {1/.} = filename without extensions (basename without .fastq.gz suffix)
-FASTQ_TO_SAM_CMD='gatk --java-options -Djava.io.tmpdir='"${TMP_DIR}"'/ \
-    FastqToSam \
-    -F1 {1} \
-    -F2 {2} \
-    -O '"${OUT_UBAM}"'/{1/.}.bam \
-    --SM {1/.} \
-    --RG {1/.} \
-    --PL illumina \
-    --LB lib1'
-
-log_cmd "parallel --progress -j ${PARALLEL_JOBS} -N 2 '${FASTQ_TO_SAM_CMD}' ::: ${FASTQ_DIR}/*.fastq.gz"
-
-${GNU_PARALLEL} --progress -j "${PARALLEL_JOBS}" -N 2 \
-    "if [ ! -f ${OUT_UBAM}/{1/.}.bam ]; then gatk --java-options -Djava.io.tmpdir=${TMP_DIR}/ \
-        FastqToSam \
-        -F1 {1} -F2 {2} \
-        -O ${OUT_UBAM}/{1/.}.bam \
-        --SM {1/.} --RG {1/.} --PL illumina --LB lib1; fi" \
-    ::: "${FASTQ_DIR}"/*.fastq.gz
+for fq in "${FASTQ_DIR}"/*.fastq.gz; do
+    [ -e "$fq" ] || continue
+    # Skip _2 files to only process per sample base
+    if [[ "$fq" == *_2.fastq.gz || "$fq" == *_2_trimmed.fastq.gz ]]; then continue; fi
+    
+    SAMPLE=$(basename "$fq" | sed -E 's/(_1|_trimmed)?\.fastq\.gz//')
+    
+    F1="$fq"
+    F2="${FASTQ_DIR}/${SAMPLE}_2.fastq.gz"
+    F2_TRIMMED="${FASTQ_DIR}/${SAMPLE}_2_trimmed.fastq.gz"
+    
+    if [ ! -f "${OUT_UBAM}/${SAMPLE}.bam" ]; then
+        if [ -f "$F2" ]; then
+            log_cmd "FastqToSam (Paired): ${SAMPLE}"
+            gatk --java-options -Djava.io.tmpdir="${TMP_DIR}"/ FastqToSam -F1 "$F1" -F2 "$F2" -O "${OUT_UBAM}/${SAMPLE}.bam" --SM "${SAMPLE}" --RG "${SAMPLE}" --PL illumina --LB lib1 &
+        elif [ -f "$F2_TRIMMED" ]; then
+            log_cmd "FastqToSam (Paired): ${SAMPLE}"
+            gatk --java-options -Djava.io.tmpdir="${TMP_DIR}"/ FastqToSam -F1 "$F1" -F2 "$F2_TRIMMED" -O "${OUT_UBAM}/${SAMPLE}.bam" --SM "${SAMPLE}" --RG "${SAMPLE}" --PL illumina --LB lib1 &
+        else
+            log_cmd "FastqToSam (Single): ${SAMPLE}"
+            gatk --java-options -Djava.io.tmpdir="${TMP_DIR}"/ FastqToSam -F1 "$F1" -O "${OUT_UBAM}/${SAMPLE}.bam" --SM "${SAMPLE}" --RG "${SAMPLE}" --PL illumina --LB lib1 &
+        fi
+    fi
+done
+wait
 
 log_ok "FastqToSam completed"
 
@@ -201,18 +204,24 @@ log_theory "BWA-MEM and Alignment Algorithm" \
     "  PAR1/PAR2 (pseudoautosomal regions) are homologous to the X-chromosome." \
     "  Reads mapping to PAR map ambiguously (MAPQ = 0). For proper" \
     "  Y analysis, a hard-masked reference or PAR masking is required."
-BWA_CMD="gatk --java-options \"-Xmx512m -Djava.io.tmpdir=${TMP_DIR}/\" SamToFastq -I {} -FASTQ /dev/stdout -INTERLEAVE true | bwa mem -p -t 4 -R '@RG\\tID:{/.}\\tSM:{/.}\\tPL:illumina\\tLB:lib1' ${GENOME_FA} /dev/stdin | samtools sort -@ 2 -m 250M -o ${OUT_BWA}/{/.}.bam - && samtools index ${OUT_BWA}/{/.}.bam"
+CHRS=$(awk '{print "\x27"$1"\x27"}' "${CHRY_MT_BED}" | tr '\n' ' ')
+
+BWA_CMD="gatk --java-options \"-Xmx512m -Djava.io.tmpdir=${TMP_DIR}/\" SamToFastq -I {} -FASTQ /dev/stdout -INTERLEAVE true | bwa mem -p -t 4 -R '@RG\\tID:{/.}\\tSM:{/.}\\tPL:illumina\\tLB:lib1' ${GENOME_FA} /dev/stdin | samtools sort -@ 2 -m 250M -o ${TMP_DIR}/{/.}_full.bam - && samtools index ${TMP_DIR}/{/.}_full.bam && samtools view -b ${TMP_DIR}/{/.}_full.bam ${CHRS} > ${OUT_BWA}/{/.}.bam && samtools index ${OUT_BWA}/{/.}.bam && rm ${TMP_DIR}/{/.}_full.bam*"
 
 log_cmd "parallel --progress -j ${PARALLEL_JOBS} '${BWA_CMD}' ::: ${OUT_UBAM}/*.bam"
 
 ${GNU_PARALLEL} --progress -j "${PARALLEL_JOBS}" \
-    "if [ ! -f ${OUT_BWA}/{/.}.bam ] || [ \$(stat -c%s ${OUT_BWA}/{/.}.bam) -lt 1000000 ]; then gatk --java-options \"-Xmx512m -Djava.io.tmpdir=${TMP_DIR}/\" SamToFastq -I {} -FASTQ /dev/stdout -INTERLEAVE true | \
+    "if [ ! -f ${OUT_BWA}/{/.}.bam ] || [ \$(stat -c%s ${OUT_BWA}/{/.}.bam) -lt 1000000 ]; then \
+     gatk --java-options \"-Xmx512m -Djava.io.tmpdir=${TMP_DIR}/\" SamToFastq -I {} -FASTQ /dev/stdout -INTERLEAVE true | \
      bwa mem -p -t 4 -R '@RG\\tID:{/.}\\tSM:{/.}\\tPL:illumina\\tLB:lib1' ${GENOME_FA} /dev/stdin | \
-     samtools sort -@ 2 -m 250M -o ${OUT_BWA}/{/.}.bam - && \
-     samtools index ${OUT_BWA}/{/.}.bam; fi" \
+     samtools sort -@ 2 -m 250M -o ${TMP_DIR}/{/.}_full.bam - && \
+     samtools index ${TMP_DIR}/{/.}_full.bam && \
+     samtools view -b ${TMP_DIR}/{/.}_full.bam ${CHRS} > ${OUT_BWA}/{/.}.bam && \
+     samtools index ${OUT_BWA}/{/.}.bam && \
+     rm ${TMP_DIR}/{/.}_full.bam*; fi" \
     ::: "${OUT_UBAM}"/*.bam
 
-log_ok "BWA-MEM alignment completed"
+log_ok "BWA-MEM alignment and chrY/chrM extraction completed"
 
 # =============================================================================
 #  1.7 ADDITIONAL HARDWARE ACCELERATION INFO
