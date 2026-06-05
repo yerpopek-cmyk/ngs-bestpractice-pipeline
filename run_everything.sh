@@ -20,8 +20,14 @@ echo "================================================================="
 source "$(conda info --base)/etc/profile.d/conda.sh" 2>/dev/null || true
 conda activate "${CONDA_ENV_QC}" 2>/dev/null || true
 
+# Map SRR accession to Sample Name
+declare -A SAMPLE_MAP
+SAMPLE_MAP["SRR2052353"]="HG001"
+SAMPLE_MAP["SRR1766555"]="HG002"
+SAMPLE_MAP["SRR1766749"]="HG003"
+
 # Remove any leftover lock files from previous runs/crashes
-for srr in SRR1976948 SRR1980220 SRR1975755; do
+for srr in SRR2052353 SRR1766555 SRR1766749; do
     if [ -f "${TMP_DIR}/${srr}/${srr}.sra.lock" ]; then
         echo "Removing leftover lock file for ${srr}..."
         rm -f "${TMP_DIR}/${srr}/${srr}.sra.lock"
@@ -30,11 +36,11 @@ done
 
 # Parallel downloads to maximize speed
 echo "Starting downloads in parallel..."
-prefetch SRR1976948 -O "${TMP_DIR}" &
+prefetch SRR2052353 -O "${TMP_DIR}" &
 pid1=$!
-prefetch SRR1980220 -O "${TMP_DIR}" &
+prefetch SRR1766555 -O "${TMP_DIR}" &
 pid2=$!
-prefetch SRR1975755 -O "${TMP_DIR}" &
+prefetch SRR1766749 -O "${TMP_DIR}" &
 pid3=$!
 
 # Wait for all background downloads to finish
@@ -47,19 +53,24 @@ echo "All downloads complete!"
 echo "================================================================="
 echo " 2. Extracting & compressing FASTQ files (fasterq-dump + pigz)"
 echo "================================================================="
-for srr in SRR1976948 SRR1980220 SRR1975755; do
+for srr in SRR2052353 SRR1766555 SRR1766749; do
+    sample="${SAMPLE_MAP[$srr]}"
     # Skip if compressed fastq files already exist
-    if [ -f "${FASTQ_DIR}/${srr}_1.fastq.gz" ] && [ -f "${FASTQ_DIR}/${srr}_2.fastq.gz" ]; then
-        echo "✔ FASTQ files for ${srr} already exist. Skipping extraction."
+    if [ -f "${FASTQ_DIR}/${sample}_1.fastq.gz" ] && [ -f "${FASTQ_DIR}/${sample}_2.fastq.gz" ]; then
+        echo "✔ FASTQ files for ${sample} already exist. Skipping extraction."
         continue
     fi
 
-    echo "Extracting ${srr}..."
+    echo "Extracting ${srr} (as ${sample})..."
     fasterq-dump --split-files -e "${THREADS}" --mem 8GB -O "${FASTQ_DIR}" "${TMP_DIR}/${srr}/${srr}.sra"
 
-    echo "Compressing ${srr} reads..."
-    pigz -f -p "${THREADS}" "${FASTQ_DIR}/${srr}_1.fastq" &
-    pigz -f -p "${THREADS}" "${FASTQ_DIR}/${srr}_2.fastq" &
+    # Rename extracted files to the standard HG001/HG002/HG003 names
+    mv "${FASTQ_DIR}/${srr}_1.fastq" "${FASTQ_DIR}/${sample}_1.fastq"
+    mv "${FASTQ_DIR}/${srr}_2.fastq" "${FASTQ_DIR}/${sample}_2.fastq"
+
+    echo "Compressing ${sample} reads..."
+    pigz -f -p "${THREADS}" "${FASTQ_DIR}/${sample}_1.fastq" &
+    pigz -f -p "${THREADS}" "${FASTQ_DIR}/${sample}_2.fastq" &
     wait
 done
 
@@ -71,9 +82,9 @@ rm -rf "${TMP_DIR}"/SRR*
 echo "Updating samples.tsv..."
 cat << EOF > "${SCRIPT_DIR}/samples.tsv"
 sample_id	sex	relationship	haplogroup_Y	haplogroup_MT
-SRR1976948	M	probant	R1b1a2	H1
-SRR1980220	M	unrelated	R1b1a2	H1
-SRR1975755	M	unrelated	I2a1b	U5b
+HG001	F	probant	.	H13a1a1a
+HG002	M	son	J1a2a1a2c1a1a1~	H5a7
+HG003	M	father	J1a2a1a2c1a1	K1a1b1a
 EOF
 
 # 4. Run the main pipeline
