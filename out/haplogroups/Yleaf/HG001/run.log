@@ -1,0 +1,2 @@
+DEBUG 20:47:53.926691 (0.000 s) - Logger created
+INFO 20:47:53.926862 (0.000 s) - Running Yleaf with command: /home/yer_kanat/miniconda3/envs/yleaf/bin/Yleaf -bam /home/yer_kanat/Downloads/ngs-y-mt-pipeline/out/final_bam/HG001.bam -o /home/yer_kanat/Downloads/ngs-y-mt-pipeline/out/haplogroups/Yleaf/HG001 --reference_genome hg38

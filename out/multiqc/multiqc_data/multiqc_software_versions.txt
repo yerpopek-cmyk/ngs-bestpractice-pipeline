@@ -1,0 +1,4 @@
+Sample	BamQC	Bcftools	FastQC
+Bcftools		1.19	
+FastQC			0.12.1
+QualiMap	2.3		
